@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Jnana Mudra — 3 & 8 Resonance Simulator</title>
+<style>
+  :root{
+    --bg:#0b1020;--panel:#101827;--ink:#e7ecff;--muted:#a8b0d9;--accent:#7aa2ff;
+    --good:#10b981;--warn:#fbbf24;--bad:#ef4444;--line:#20304f;--br:14px
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; color:var(--ink); background:
+      radial-gradient(1200px 600px at -10% -20%, #1e2a72 0%, transparent 60%),
+      linear-gradient(135deg,#0b1020,#0d1530 55%,#0b1020);
+    font:14px/1.4 system-ui,Segoe UI,Roboto,Helvetica,Arial;
+    display:grid; grid-template-columns:320px 1fr; gap:0
+  }
+  @media (max-width:980px){ body{grid-template-columns:1fr; grid-template-rows:auto 1fr} }
+  #ui{
+    background:linear-gradient(180deg, #0e162a, #0b1224);
+    border-right:1px solid #0f1a34; padding:16px; position:relative; z-index:1
+  }
+  .h{font-size:18px; margin:6px 0 10px; letter-spacing:.3px}
+  .sub{font-size:12px; color:var(--muted); margin:2px 0 10px}
+  .row{display:grid; grid-template-columns:1fr auto; gap:8px; align-items:center; margin:8px 0}
+  .stack{display:flex; gap:8px; flex-wrap:wrap}
+  .card{background:#0e162a; border:1px solid #182340; border-radius:var(--br); padding:10px; box-shadow:0 10px 28px rgba(0,0,0,.35)}
+  label{color:var(--muted)}
+  input[type="range"]{width:160px}
+  input[type="number"]{width:84px; background:#0d152a; color:var(--ink); border:1px solid #1e2b52; border-radius:8px; padding:6px}
+  select,.btn{
+    background:#0d152a; color:var(--ink); border:1px solid #1e2b52; border-radius:10px; padding:8px 10px
+  }
+  .btn{cursor:pointer}
+  .btn.primary{background:linear-gradient(180deg,#15255a,#0e1a44); border-color:#2b3f7b}
+  .pill{display:inline-flex; gap:8px; align-items:center; padding:6px 10px; border-radius:999px; border:1px solid #23335f; color:var(--muted)}
+  .sep{height:1px; background:#142045; margin:12px 0}
+  #canvas{width:100%; height:100%; display:block}
+  #stage{position:relative}
+  #hud{
+    position:absolute; top:12px; right:12px; padding:8px 10px; border-radius:10px;
+    background:rgba(10,16,36,.4); backdrop-filter: blur(6px);
+    border:1px solid #20304f; color:#cfe3ff; font-size:12px
+  }
+  .kpi{display:flex; gap:10px}
+  .kpi div{opacity:.9}
+  .note{font-size:12px; color:var(--muted)}
+</style>
+</head>
+<body>
+  <aside id="ui">
+    <div class="h">Jnana Mudra — 3 & 8 Resonance</div>
+    <div class="sub">Layered geometry with breath-synced animation. Toggle what to show and tune parameters.</div>
+
+    <div class="card">
+      <div class="h" style="font-size:15px">Layers</div>
+      <div class="row"><label><input type="checkbox" id="showLemn" checked /> Lemniscate (∞)</label></div>
+      <div class="row"><label><input type="checkbox" id="showTri" checked /> Triad Rays (3)</label></div>
+      <div class="row"><label><input type="checkbox" id="showNodes" checked /> Thumb–Index Nodes (0/8)</label></div>
+      <div class="row"><label><input type="checkbox" id="showMandala" /> Mandala Rings</label></div>
+      <div class="row"><label><input type="checkbox" id="showGuides" /> Guides / Axes</label></div>
+      <div class="sep"></div>
+      <div class="row"><label>Palette</label>
+        <select id="palette">
+          <option value="aurora">Aurora</option>
+          <option value="noir">Noir</option>
+          <option value="sunrise">Sunrise</option>
+          <option value="lotus">Lotus</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:10px">
+      <div class="h" style="font-size:15px">Breath & Motion</div>
+      <div class="row"><label>Inhale (s)</label><input type="number" id="inh" min="1" step="0.5" value="3" /></div>
+      <div class="row"><label>Exhale (s)</label><input type="number" id="exh" min="1" step="0.5" value="8" /></div>
+      <div class="row"><label>Hold (s)</label><input type="number" id="hold" min="0" step="0.5" value="0" /></div>
+      <div class="row"><label>Tempo (%)</label><input type="range" id="tempo" min="50" max="200" value="100" /></div>
+      <div class="row"><label>Spin (°/s)</label><input type="range" id="spin" min="-90" max="90" value="8" /></div>
+    </div>
+
+    <div class="card" style="margin-top:10px">
+      <div class="h" style="font-size:15px">Geometry</div>
+      <div class="row"><label>Scale</label><input type="range" id="scale" min="40" max="240" value="140" /></div>
+      <div class="row"><label>Lemniscate a</label><input type="range" id="paramA" min="0.3" max="1.8" value="1.0" step="0.01" /></div>
+      <div class="row"><label>Triad Spread (°)</label><input type="range" id="triSpread" min="40" max="160" value="120" /></div>
+      <div class="row"><label>Node Offset</label><input type="range" id="nodeOff" min="0" max="1" value="0.45" step="0.01" /></div>
+      <div class="row"><label>Glow</label><input type="range" id="glow" min="0" max="40" value="18" /></div>
+      <div class="row"><label>Accuracy</label>
+        <select id="acc">
+          <option value="bern">Bernoulli Lemniscate (exact)</option>
+          <option value="epi">Epicycloid Approx (smooth)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:10px">
+      <div class="h" style="font-size:15px">Actions</div>
+      <div class="stack">
+        <button class="btn primary" id="toggle">Pause</button>
+        <button class="btn" id="snap">Export PNG</button>
+        <span class="pill">3–8 breath synced</span>
+      </div>
+      <div class="note" style="margin-top:8px">
+        Tip: Try palette <b>Lotus</b>, Accuracy <b>Bernoulli</b>, Glow 22, Triad 120°, Spin 6–10°/s.
+      </div>
+    </div>
+  </aside>
+
+  <section id="stage">
+    <canvas id="canvas"></canvas>
+    <div id="hud" class="card" style="padding:8px 10px">
+      <div class="kpi">
+        <div>Phase: <span id="phase">Inhale</span></div>
+        <div>Cycle t: <span id="t">0.0</span>s</div>
+        <div>FPS: <span id="fps">—</span></div>
+      </div>
+    </div>
+  </section>
+
+<script>
+(() => {
+  /*** ——— Utilities ——— **/
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  let paused = false, last=0, fpsBuf=[], rot=0, tCycle=0;
+
+  const $ = id => document.getElementById(id);
+  const UI = {
+    showLemn: $('showLemn'), showTri: $('showTri'), showNodes: $('showNodes'),
+    showMandala: $('showMandala'), showGuides: $('showGuides'),
+    palette: $('palette'),
+    inh: $('inh'), exh: $('exh'), hold: $('hold'),
+    tempo: $('tempo'), spin: $('spin'),
+    scale: $('scale'), paramA: $('paramA'), triSpread: $('triSpread'),
+    nodeOff: $('nodeOff'), glow: $('glow'), acc: $('acc')
+  };
+
+  function resize(){
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const w = canvas.clientWidth = canvas.parentElement.clientWidth;
+    const h = canvas.clientHeight = canvas.parentElement.clientHeight;
+    canvas.width = Math.floor(w*dpr); canvas.height = Math.floor(h*dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+  window.addEventListener('resize', resize, {passive:true}); resize();
+
+  /*** ——— Color Palettes ——— **/
+  const palettes = {
+    aurora: {
+      bg:"#0b1020", ink:"#d6e5ff",
+      lemn:["#7aa2ff","#9bf6ff","#a7f3d0"],
+      tri:["#fbbf24","#fde68a"],
+      nodes:["#22d3ee","#7c3aed"], rings:"#23335f"
+    },
+    noir: {
+      bg:"#0a0a12", ink:"#eaeaea",
+      lemn:["#cfcfcf","#8f8f8f","#ffffff"],
+      tri:["#7f7f7f","#e6e6e6"],
+      nodes:["#cfcfcf","#9c9c9c"], rings:"#3a3a3a"
+    },
+    sunrise: {
+      bg:"#110b16", ink:"#ffe9d6",
+      lemn:["#ff8a5b","#ffd166","#ffd1a1"],
+      tri:["#ffd166","#ff9f1c"],
+      nodes:["#ff6b6b","#ffd166"], rings:"#3b2444"
+    },
+    lotus: {
+      bg:"#0b1020", ink:"#f0e7ff",
+      lemn:["#c084fc","#a78bfa","#f0abfc"],
+      tri:["#f472b6","#fbcfe8"],
+      nodes:["#22d3ee","#fb7185"], rings:"#2a1f4a"
+    }
+  };
+
+  /*** ——— Breath Cycle (3-8-optional hold) ———
+       returns scale multiplier in [0.8..1.2] and phase label **/
+  function breath(time, tempo=1, inh=3, exh=8, hold=0){
+    const cycle = (inh + hold + exh) / tempo;
+    let t = time % cycle;
+    if(t < inh/tempo){ // inhale: ease out
+      const k = t / (inh/tempo);
+      return {m: 0.8 + 0.4 * (1 - Math.cos(Math.PI*k))/2, label:"Inhale", t};
+    } else if(t < (inh+hold)/tempo){ // hold
+      const t2 = t - inh/tempo;
+      return {m: 1.2, label:"Hold", t};
+    } else { // exhale: ease in
+      const t3 = (t - (inh+hold)/tempo) / (exh/tempo);
+      return {m: 1.2 - 0.4 * (1 - Math.cos(Math.PI*t3))/2, label:"Exhale", t};
+    }
+  }
+
+  /*** ——— Geometry ——— **/
+  // Bernoulli lemniscate parametric via polar r^2 = a^2 cos(2θ)
+  function lemniscateBern(a, steps=720){
+    const pts = [];
+    for(let i=0;i<=steps;i++){
+      const th = (i/steps)*2*Math.PI;
+      const c = Math.cos(2*th);
+      if(c>=0){ // valid region
+        const r = a * Math.sqrt(c);
+        const x = r * Math.cos(th);
+        const y = r * Math.sin(th);
+        pts.push({x,y});
+      } else {
+        // stitch with NaN to break the line
+        pts.push({x:NaN,y:NaN});
+      }
+    }
+    return pts;
+  }
+  // Smooth epicycloid-ish approximation to an ∞ loop
+  function lemniscateEpi(a, steps=720){
+    const pts = [];
+    for(let i=0;i<=steps;i++){
+      const t = (i/steps)*2*Math.PI;
+      const x = a*Math.sin(t);
+      const y = a*Math.sin(t)*Math.cos(t);
+      pts.push({x,y});
+    }
+    return pts;
+  }
+
+  function setStroke(g, alpha=1, width=2, glow=0){
+    ctx.globalAlpha = alpha;
+    ctx.lineWidth = width;
+    ctx.shadowBlur = glow;
+    ctx.shadowColor = g;
+    ctx.strokeStyle = g;
+  }
+  function pathPts(pts, scale){
+    ctx.beginPath();
+    let move=true;
+    for(const p of pts){
+      if(Number.isNaN(p.x)){ move=true; continue; }
+      const x = p.x*scale, y = p.y*scale;
+      if(move){ ctx.moveTo(x,y); move=false; } else ctx.lineTo(x,y);
+    }
+    ctx.stroke();
+  }
+
+  /*** ——— Draw ——— **/
+  const phaseEl = $('phase'), tEl = $('t'), fpsEl = $('fps');
+
+  function draw(dt){
+    const pal = palettes[UI.palette.value];
+    // backplate
+    ctx.save();
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    // vignette
+    const W = canvas.clientWidth, H = canvas.clientHeight;
+    const cx = W/2, cy = H/2;
+    const g = ctx.createRadialGradient(cx,cy,Math.min(W,H)*0.1,cx,cy,Math.max(W,H)*0.7);
+    g.addColorStop(0,'rgba(255,255,255,0.02)');
+    g.addColorStop(1,'rgba(0,0,0,0.35)');
+    ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+    ctx.restore();
+
+    // tempo & breath
+    const tempo = UI.tempo.value/100;
+    const B = breath(tCycle, tempo, parseFloat(UI.inh.value), parseFloat(UI.exh.value), parseFloat(UI.hold.value));
+    phaseEl.textContent = B.label; tEl.textContent = (B.t).toFixed(1);
+
+    // center transform
+    ctx.save();
+    ctx.translate(cx, cy);
+    rot += (parseFloat(UI.spin.value) * Math.PI/180) * (dt/1000);
+    ctx.rotate(rot);
+
+    const S = parseFloat(UI.scale.value) * B.m;
+    const glow = parseFloat(UI.glow.value);
+    const paramA = parseFloat(UI.paramA.value);
+
+    // Guides
+    if(UI.showGuides.checked){
+      setStroke('#2b3f7b',.4,1,0);
+      ctx.beginPath(); ctx.moveTo(-S*1.4,0); ctx.lineTo(S*1.4,0);
+      ctx.moveTo(0,-S*1.4); ctx.lineTo(0,S*1.4); ctx.stroke();
+    }
+
+    // Mandala rings
+    if(UI.showMandala.checked){
+      ctx.save();
+      const rings = [0.5,0.8,1.0,1.25,1.5];
+      for(let i=0;i<rings.length;i++){
+        setStroke(pal.rings,0.35,1.25,0);
+        ctx.beginPath(); ctx.arc(0,0,S*rings[i],0,Math.PI*2); ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    // Lemniscate
+    if(UI.showLemn.checked){
+      const pts = (UI.acc.value==='bern' ? lemniscateBern(paramA,880) : lemniscateEpi(paramA,880));
+      // layered strokes for glow gradient
+      const cols = pal.lemn;
+      for(let i=0;i<cols.length;i++){
+        setStroke(cols[i], 0.70 - i*0.12, 3 + i*1.2, glow*(1-i*0.35));
+        pathPts(pts, S);
+      }
+    }
+
+    // Triad rays (3)
+    if(UI.showTri.checked){
+      const spread = parseFloat(UI.triSpread.value) * Math.PI/180;
+      const base = -spread/2;
+      const cols = pal.tri;
+      for(let k=0;k<3;k++){
+        const ang = base + k*(spread/2);
+        setStroke(cols[k%cols.length], 0.8, 2.5, glow*0.6);
+        ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(Math.cos(ang)*S*1.5, Math.sin(ang)*S*1.5); ctx.stroke();
+      }
+      // small cap triangle
+      setStroke(cols[1%cols.length], 0.5, 1.5, 0);
+      ctx.beginPath();
+      for(let k=0;k<3;k++){
+        const ang = base + k*(spread/2);
+        const x = Math.cos(ang)*S*0.9, y=Math.sin(ang)*S*0.9;
+        if(k===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      }
+      ctx.closePath(); ctx.stroke();
+    }
+
+    // Thumb–Index nodes (two circles suggest 8 / “O” of mudra)
+    if(UI.showNodes.checked){
+      const off = parseFloat(UI.nodeOff.value);
+      const r = S*0.22;
+      const dx = S*off;
+      const cols = pal.nodes;
+      setStroke(cols[0],0.9,3, glow*0.8);
+      ctx.beginPath(); ctx.arc(-dx,0,r,0,Math.PI*2); ctx.stroke();
+      setStroke(cols[1%cols.length],0.9,3, glow*0.8);
+      ctx.beginPath(); ctx.arc( dx,0,r,0,Math.PI*2); ctx.stroke();
+
+      // index/thumb contact sparkle
+      ctx.save();
+      ctx.globalCompositeOperation='lighter';
+      const sparkR = r*0.98;
+      for(let k=0;k<2;k++){
+        const s = ctx.createRadialGradient((k?dx:-dx),0,1,(k?dx:-dx),0,r*0.6);
+        s.addColorStop(0,'rgba(255,255,255,.95)');
+        s.addColorStop(1,'rgba(255,255,255,0)');
+        ctx.fillStyle = s;
+        ctx.beginPath(); ctx.arc((k?dx:-dx),0,sparkR,0,Math.PI*2); ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    ctx.restore(); // end center
+
+    // HUD fps
+    const now = performance.now();
+    if(last){
+      const fps = 1000/(now-last);
+      fpsBuf.push(fps); if(fpsBuf.length>15) fpsBuf.shift();
+      const avg = fpsBuf.reduce((a,b)=>a+b,0)/fpsBuf.length;
+      fpsEl.textContent = Math.round(avg);
+    }
+    last = now;
+  }
+
+  /*** ——— Loop ——— **/
+  let raf;
+  function loop(ts){
+    if(!paused){
+      const dt = ts - (loop.lastTs||ts);
+      loop.lastTs = ts;
+      tCycle += dt/1000;
+      draw(dt);
+    }
+    raf = requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+
+  /*** ——— Controls ——— **/
+  $('toggle').onclick = () => {
+    paused = !paused;
+    $('toggle').textContent = paused ? 'Resume' : 'Pause';
+  };
+  $('snap').onclick = () => {
+    const link = document.createElement('a');
+    link.download = `mudra_3x8_${Date.now()}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  };
+})();
+</script>
+</body>
+</html>
